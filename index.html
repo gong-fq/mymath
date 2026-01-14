@@ -362,37 +362,35 @@
         }
 
         // ⚡ 优化的发送逻辑 - 更快响应
-        async function handleSend() {
-            const content = messageInput.value.trim();
-            if (!content || sendBtn.disabled) return;
+       async function handleSend() {
+    const content = messageInput.value.trim();
+    if (!content || sendBtn.disabled) return;
 
-            addMessageToUI('user', content);
-            messageInput.value = '';
-            sendBtn.disabled = true;
+    addMessageToUI('user', content);
+    messageInput.value = '';
+    sendBtn.disabled = true;
 
-            const aiDiv = addMessageToUI('ai', '正在思考...');
-            let fullAIResponse = "";
-            chatHistory.push({ role: "user", content: content });
+    const aiDiv = addMessageToUI('ai', '正在思考...');
+    chatHistory.push({ role: "user", content: content });
 
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messages: chatHistory,
-                        // ⚡ 优化参数
-                        max_tokens: 600,  // 降低 token 限制提速
-                        temperature: 0.7
-                    })
-                });
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: chatHistory,
+                max_tokens: 800,
+                temperature: 0.7
+            })
+        });
 
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
+               if (!response.ok) {
+            throw new Error(result.error || '请求失败');
+        }
 
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                aiDiv.querySelector('div').innerHTML = "";
+        // 修改：处理非流式返回的数据结构
+        const fullAIResponse = result.choices[0].message.content;
+        aiDiv.querySelector('div').innerHTML = formatMathText(fullAIResponse);
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -418,27 +416,23 @@
                     }
                 }
                 
-                if (window.MathJax) {
-                    MathJax.typesetPromise([aiDiv.querySelector('div')]).then(() => {
-                        autoDrawFunction(fullAIResponse);
-                    });
+              if (window.MathJax) {
+            MathJax.typesetPromise([aiDiv.querySelector('div')]).then(() => {
+                autoDrawFunction(fullAIResponse);
+            });
+        }
                 }
-                chatHistory.push({ role: "assistant", content: fullAIResponse });
-                saveCurrentConversation(content, fullAIResponse);
+               chatHistory.push({ role: "assistant", content: fullAIResponse });
+        saveCurrentConversation(content, fullAIResponse);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            } catch (error) {
-                console.error('请求错误:', error);
-                chatHistory.pop();
-                
-                let errorMsg = "抱歉,连接出现问题:\n\n";
-                errorMsg += "• 请检查 Netlify Functions 是否正确部署\n";
-                errorMsg += "• 确认环境变量 DEEPSEEK_API_KEY 已设置\n";
-                errorMsg += "• 查看浏览器控制台获取详细信息";
-                
-                aiDiv.querySelector('div').innerHTML = errorMsg.replace(/\n/g, '<br>');
-            } finally {
-                sendBtn.disabled = false;
-            }
+    } catch (error) {
+        console.error('请求错误:', error);
+        aiDiv.querySelector('div').innerHTML = `抱歉，连接出现问题：<br>1. 请检查 Netlify 环境变量是否包含 DEEPSEEK_API_KEY<br>2. 确认网络环境正常`;
+    } finally {
+        sendBtn.disabled = false;
+    }
+}
         }
 
         sendBtn.onclick = handleSend;
