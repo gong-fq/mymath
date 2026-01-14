@@ -1,0 +1,8 @@
+{
+  "name": "math-ai",
+  "version": "1.0.0",
+  "description": "数学核心素养AI - 优化版",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
